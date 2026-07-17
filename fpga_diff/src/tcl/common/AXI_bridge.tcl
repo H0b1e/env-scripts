@@ -197,7 +197,7 @@ proc create_root_design { parentCell } {
    CONFIG.AWUSER_WIDTH {0} \
    CONFIG.BUSER_WIDTH {0} \
    CONFIG.DATA_WIDTH {64} \
-   CONFIG.FREQ_HZ {25000000} \
+   CONFIG.FREQ_HZ {125000000} \
    CONFIG.HAS_BRESP {1} \
    CONFIG.HAS_BURST {1} \
    CONFIG.HAS_CACHE {1} \
@@ -244,15 +244,24 @@ proc create_root_design { parentCell } {
    ] $rom_axi
 
   # Create ports
-  set ACLK [ create_bd_port -dir I -type clk -freq_hz 25000000 ACLK ]
+  set ACLK [ create_bd_port -dir I -type clk -freq_hz 125000000 ACLK ]
   set_property -dict [ list \
    CONFIG.ASSOCIATED_BUSIF {rom_axi} \
+   CONFIG.ASSOCIATED_RESET {ARESETN} \
  ] $ACLK
   set ARESETN [ create_bd_port -dir I -type rst ARESETN ]
-  set SYS_INTER_CLK [ create_bd_port -dir I -type clk -freq_hz 25000000 SYS_INTER_CLK ]
+  set_property -dict [ list \
+   CONFIG.POLARITY {ACTIVE_LOW} \
+ ] $ARESETN
+  set SYS_INTER_CLK [ create_bd_port -dir I -type clk -freq_hz 125000000 SYS_INTER_CLK ]
   set_property -dict [ list \
    CONFIG.ASSOCIATED_BUSIF {S00_AXI} \
+   CONFIG.ASSOCIATED_RESET {SYS_INTER_ARESETN} \
  ] $SYS_INTER_CLK
+  set SYS_INTER_ARESETN [ create_bd_port -dir I -type rst SYS_INTER_ARESETN ]
+  set_property -dict [ list \
+   CONFIG.POLARITY {ACTIVE_LOW} \
+ ] $SYS_INTER_ARESETN
   set uart0_intc [ create_bd_port -dir O -type intr uart0_intc ]
 
   # Create instance: axi_apb_bridge_0, and set properties
@@ -271,6 +280,9 @@ proc create_root_design { parentCell } {
 
   # Create instance: axi_uart16550_0, and set properties
   set axi_uart16550_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_uart16550:2.0 axi_uart16550_0 ]
+  set_property -dict [ list \
+   CONFIG.C_USE_MODEM_PORTS {0} \
+ ] $axi_uart16550_0
 
   # Create instance: jtag_axi_flash, and set properties
   set jtag_axi_flash [ create_bd_cell -type ip -vlnv xilinx.com:ip:jtag_axi:1.2 jtag_axi_flash ]
@@ -302,8 +314,9 @@ proc create_root_design { parentCell } {
 
   # Create port connections
   connect_bd_net -net ACLK_0_1 [get_bd_ports ACLK] [get_bd_pins axi_apb_bridge_0/s_axi_aclk] [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/M02_ACLK] [get_bd_pins axi_interconnect_0/S01_ACLK] [get_bd_pins axi_uart16550_0/s_axi_aclk] [get_bd_pins jtag_axi_flash/aclk]
-  connect_bd_net -net ARESETN_0_1 [get_bd_ports ARESETN] [get_bd_pins axi_apb_bridge_0/s_axi_aresetn] [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN] [get_bd_pins axi_interconnect_0/S01_ARESETN] [get_bd_pins axi_uart16550_0/s_axi_aresetn] [get_bd_pins jtag_axi_flash/aresetn]
+  connect_bd_net -net ARESETN_0_1 [get_bd_ports ARESETN] [get_bd_pins axi_apb_bridge_0/s_axi_aresetn] [get_bd_pins axi_interconnect_0/ARESETN] [get_bd_pins axi_interconnect_0/M00_ARESETN] [get_bd_pins axi_interconnect_0/M01_ARESETN] [get_bd_pins axi_interconnect_0/M02_ARESETN] [get_bd_pins axi_interconnect_0/S01_ARESETN] [get_bd_pins axi_uart16550_0/s_axi_aresetn] [get_bd_pins jtag_axi_flash/aresetn]
   connect_bd_net -net SYS_INTER_CLK_1 [get_bd_ports SYS_INTER_CLK] [get_bd_pins axi_interconnect_0/S00_ACLK]
+  connect_bd_net -net SYS_INTER_ARESETN_1 [get_bd_ports SYS_INTER_ARESETN] [get_bd_pins axi_interconnect_0/S00_ARESETN]
   connect_bd_net -net axi_uart16550_0_ip2intc_irpt [get_bd_ports uart0_intc] [get_bd_pins axi_uart16550_0/ip2intc_irpt]
   connect_bd_net -net xlconstant_0_dout [get_bd_pins axi_uart16550_0/freeze] [get_bd_pins xlconstant_0/dout]
 
