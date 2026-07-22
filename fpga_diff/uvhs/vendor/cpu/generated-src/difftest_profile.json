@@ -1,0 +1,50 @@
+{
+  "cpu":"NutShell",
+  "numCores":1,
+  "cmdConfigs":[
+    "--difftest-config",
+    "ESBIFDU",
+    "--target-dir",
+    "/nfs/home/fengkehan/project/minjie-playground/NutShell/build/rtl",
+    "BOARD=fpgadiff",
+    "CORE=inorder",
+    "--split-verilog"
+  ],
+  "bundles":[
+    {
+      "className":"difftest.DiffPhyIntRegState",
+      "classArgs":{
+        "numPhyRegs":32
+      },
+      "delay":0
+    },
+    {
+      "className":"difftest.DiffCSRState",
+      "classArgs":{
+        
+      },
+      "delay":0
+    },
+    {
+      "className":"difftest.DiffArchEvent",
+      "classArgs":{
+        
+      },
+      "delay":0
+    },
+    {
+      "className":"difftest.DiffTrapEvent",
+      "classArgs":{
+        
+      },
+      "delay":0
+    },
+    {
+      "className":"difftest.DiffInstrCommit",
+      "classArgs":{
+        "nPhyRegs":32
+      },
+      "delay":1
+    }
+  ]
+}

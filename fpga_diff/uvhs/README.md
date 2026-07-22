@@ -1,80 +1,79 @@
 # UVHS FPGA-Diff Flow
 
-This directory is the source flow for the Hejian UVHS FPGA-Diff target. It is
-separate from the legacy standalone Vivado targets in `fpga_diff/`.
+This directory contains a self-contained UVHS profile. Its staged scripts, RTL,
+DCP inputs, and frozen NutShell source closure live under `script/`, `rtl/`,
+and `vendor/`; run the build from this directory.
 
-The legacy project-generation helpers are documented in
-[`../vivado/README.md`](../vivado/README.md) and are intentionally outside this
-directory.
-
-## Entry Points
-
-- `../Makefile`: public `uvhs_*` forwarding targets.
-- `Makefile`: UVHS frontend, backend, packaging, and preflight implementation.
-- `setenv.sh`: repository-generic tool and license setup.
-- `setenv.local.example.sh`: template for machine-local settings. Copy it to
-  `setenv.local.sh`; the local file is ignored by Git.
-- `flow.md`: detailed build, signoff, runtime, and troubleshooting runbook.
-
-## Build Stages
-
-Run the stages explicitly so frontend, backend, packaging, and board runtime
-failures remain distinguishable:
+## Build
 
 ```sh
-make uvhs_tools_check
-make uvhs_frontend CPU=nutshell CORE_DIR=/path/to/generated/core SUFFIX=<tag>
-make uvhs_backend CPU=nutshell SUFFIX=<tag>
-make uvhs_package_bitstream CPU=nutshell \
-  UVHS_WORK_DIR=/path/to/fpga_diff_uvhs_nutshell-<tag>
+make preflight
+make generate_ddr_dcp   # only needed once, or after deleting rtl/soc/uvw_axi4_to_ddr4.*
+make prepare
+make check_modules
+make fe
+make be
+make rtdb
 ```
 
-`uvhs_all` is available for a full build. `UVHS_USE_LSF=0` is the local-run
-override when no scheduler is available. Keep `UVHS_WORK_DIR` outside the
-source tree when possible; generated `fpga_diff_uvhs_*` directories are
-ignored.
+`make all` runs the frontend and backend stages; `make fe` regenerates the DDR
+DCP/stub automatically when they are missing. `make filelist` regenerates
+`rtl/filelist.f`; `make export_vivado_ip` is an optional, slow DCP/IP export.
 
-## Runtime And Workload
-
-The minimal runtime stage contains `hw.dat` and the download script under
-`../user_script/`:
-
-- `hw_run_download.tcl`: load the database, download the bitstream, initialize
-  the board, and release the software resets.
-
-For repeated experiments use `uvhs_tagged_runtime.sh`. Every run must have a
-unique `UVHS_RUN_TAG`, stage directory, command file, work directory, tmux
-session, and log path. Cleanup is exact-tag only:
+The parent `fpga_diff/Makefile` provides equivalent prefixed bridge targets:
 
 ```sh
-UVHS_RUN_TAG=<tag> \
-UVHS_STAGE_DIR=/path/to/runtime-stage \
-  bash uvhs_tagged_runtime.sh cleanup
+make -C .. uvhs_preflight
+make -C .. uvhs_prepare
+make -C .. uvhs_check_modules
+make -C .. uvhs_frontend
+make -C .. uvhs_backend
+make -C .. uvhs_rtdb
 ```
 
-Do not add DDR writes or manual reset toggles to `hw_run_download.tcl`. The
-normal `fpga-host` flow writes its workload through H2C.
+## Outputs
 
-## Supporting Tools
+Build outputs are created in this directory:
 
-Tracked supporting helpers live under `tools/build/` and contain only
-generated-RTL fixes applied while constructing the file list. Board-specific
-probe, BAR, XDMA, strace, and backdoor-DDR debug scripts are kept as local
-tools and intentionally excluded from Git.
+```text
+hw.dat/
+logs/
+```
 
-The Makefile accepts `UVHS_PROBE_FILE=/path/to/local/probe.tcl`; without a
-local probe file it generates an intentionally empty probe script.
+`make rtdb` links `hw.dat` to `../hw.dat` (the `fpga_diff/` level) and
+extracts the runtime database to `../runtime/rtdb_test/` for the download
+flow in [`../runtime/`](../runtime/). `hw.dat` is the UVHS runtime database;
+it is not interchangeable with the legacy standalone Vivado `.bit` and `.ltx`
+artifacts under `../vivado/`.
 
-## Useful Checks
+## DDR DCP Generation
+
+The DDR checkpoint is **not** committed to Git. `make generate_ddr_dcp` (alias
+`make ddr_ip`) runs Vivado locally via `tools/ddr_ip/gen_ddr4_ip.py` and
+installs:
+
+```text
+rtl/soc/uvw_axi4_to_ddr4.dcp
+rtl/soc/uvw_axi4_to_ddr4_Stub.v
+```
+
+The configuration in `tools/ddr_ip/UV_FMCH_PDDR4DME/uvw_axi4_to_ddr4.json`
+reproduces the frozen UVHS checkpoint behavior: 256-bit AXI data, 34-bit
+address, 14-bit ID, controller ECC disabled (`DDR_ECC_EN=0`), part
+`xcvu19p-fsva3824-2-e`. The generator enforces these values and refuses other
+configurations. Vivado intermediates go to the disposable `.ddr_ip_build/`
+directory; both it and the installed artifacts are git-ignored.
+
+## PCIe And DCP Configuration
+
+The other staged DCP files are used as-is. To inspect or regenerate PCIe, XDMA,
+and bridge configuration, read the DCP-generation Tcl scripts under `script/ip/`
+(especially `script/ip/xdma_ep.tcl`) and `script/export_vivado_ip.tcl`.
+
+## Cleanup
 
 ```sh
-make uvhs_preflight
-make uvhs_check_modules CPU=nutshell CORE_DIR=/path/to/generated/core
-make uvhs_status CPU=nutshell \
-  UVHS_WORK_DIR=/path/to/fpga_diff_uvhs_nutshell-<tag>
+make clean
 ```
 
-The generated database, bitstream, reports, logs, local debug helpers, and
-temporary runtime files are not tracked. The source of truth is the Makefile,
-frontend/backend Tcl, RTL wrapper, constraints, and download runtime listed
-above.
+This removes only generated UVHS artifacts from this directory.

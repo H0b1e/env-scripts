@@ -13,42 +13,15 @@ ENABLE_ILA ?= 0
 ILA_DEPTH ?= 16384
 XDMA_LINK_WIDTH ?= X4
 XDMA_ENABLE_PF0_BAR1 ?= 1
-# Expected values for the checked Hejian XDMA EP x4 DCP used by the UVHS flow:
-# BAR0 512 KiB, BAR1 64 KiB, endpoint 10ee:9048. They are carried into the
-# Hejian scripts and host probes; do not treat them as a request to patch the
-# Vivado xdma_ep Tcl source.
 XDMA_AXILITE_MASTER_SCALE ?= Kilobytes
 XDMA_AXILITE_MASTER_SIZE ?= 512
 XDMA_EXPECTED_VENDOR ?= 0x10ee
 XDMA_EXPECTED_DEVICE ?= 0x9048
 XDMA_EXPECTED_BAR0_SIZE ?= 0x80000
 XDMA_EXPECTED_BAR1_SIZE ?= 0x10000
-UVHS_XDMA_EP_EXAMPLE_DIR ?= $(abspath $(CURDIR)/../../uvhs_1ep_test_0417_x4_xdma_loopback)
-UVHS_XDMA_EP_DEFAULT_DCP ?= $(firstword $(wildcard $(UVHS_XDMA_EP_EXAMPLE_DIR)/rtl/xdma_ep.dcp))
-UVHS_XDMA_EP_DEFAULT_DCP_SHA256 ?= e40002b4ccab73d4d7a1398630f59428add0a64b9f33d284d3789595bb791b32
-UVHS_XDMA_EP_DEFAULT_DCP_VIVADO ?= 2024.2
-UVHS_HEJIAN_X4_BASE_ASSEMBLE_DEFAULT ?= $(firstword $(wildcard $(UVHS_XDMA_EP_EXAMPLE_DIR)/script/1B_4F_HGC_assemble.tcl))
-UVHS_HEJIAN_X4_BASE_ASSEMBLE_DEFAULT_SHA256 ?= 0e44f3ced8e5628a6f9b60a36d15194f03f6eddefcf29d0221a8abf140ecb18b
-UVHS_BASE_ASSEMBLE_FILE ?=
-UVHS_BASE_ASSEMBLE_SHA256 ?=
-UVHS_XDMA_EP_DCP ?=
-UVHS_XDMA_EP_DCP_SHA256 ?=
-UVHS_ALLOW_DCP_VIVADO_MISMATCH ?= 0
-UVHS_DESIGN_NAME ?= VU19P_X4
-UVHS_TARGET_BOARD ?= B0
-UVHS_TARGET_PACK ?= $(UVHS_TARGET_BOARD)
-UVHS_TARGET_FPGA ?= F2
-UVHS_TARGET_FPGA_LOWER ?= $(shell printf '%s.%s' '$(UVHS_TARGET_PACK)' '$(UVHS_TARGET_FPGA)' | tr '[:upper:]' '[:lower:]')
-UVHS_FPGA_COUNT ?= 1
-UVHS_CPU_CLK_PERIOD_NS ?= 7
-UVHS_PNR_STRATEGY ?= Strategy_uv_high_fanout_explore
-UVHS_COMPILE_STRATEGY_NUM ?= 1
-UVHS_COMPILE_STRATEGY0 ?= uv_high_fanout_explore
-UVHS_COMPILE_STRATEGY1 ?=
-UVHS_COMPILE_STRATEGY2 ?=
 VIVADO_JOBS ?=
 DDR_RANK_WIDTH ?= 2
-export PLATFORM ENABLE_ILA ILA_DEPTH XDMA_LINK_WIDTH XDMA_ENABLE_PF0_BAR1 XDMA_AXILITE_MASTER_SCALE XDMA_AXILITE_MASTER_SIZE XDMA_EXPECTED_VENDOR XDMA_EXPECTED_DEVICE XDMA_EXPECTED_BAR0_SIZE XDMA_EXPECTED_BAR1_SIZE UVHS_XDMA_EP_EXAMPLE_DIR UVHS_XDMA_EP_DEFAULT_DCP UVHS_XDMA_EP_DEFAULT_DCP_SHA256 UVHS_XDMA_EP_DEFAULT_DCP_VIVADO UVHS_HEJIAN_X4_BASE_ASSEMBLE_DEFAULT UVHS_HEJIAN_X4_BASE_ASSEMBLE_DEFAULT_SHA256 UVHS_BASE_ASSEMBLE_FILE UVHS_BASE_ASSEMBLE_SHA256 UVHS_XDMA_EP_DCP UVHS_XDMA_EP_DCP_SHA256 UVHS_ALLOW_DCP_VIVADO_MISMATCH UVHS_DESIGN_NAME UVHS_TARGET_BOARD UVHS_TARGET_PACK UVHS_TARGET_FPGA UVHS_TARGET_FPGA_LOWER UVHS_FPGA_COUNT UVHS_CPU_CLK_PERIOD_NS UVHS_PNR_STRATEGY UVHS_COMPILE_STRATEGY_NUM UVHS_COMPILE_STRATEGY0 UVHS_COMPILE_STRATEGY1 UVHS_COMPILE_STRATEGY2 VIVADO_JOBS DDR_RANK_WIDTH
+export PLATFORM ENABLE_ILA ILA_DEPTH XDMA_LINK_WIDTH XDMA_ENABLE_PF0_BAR1 XDMA_AXILITE_MASTER_SCALE XDMA_AXILITE_MASTER_SIZE XDMA_EXPECTED_VENDOR XDMA_EXPECTED_DEVICE XDMA_EXPECTED_BAR0_SIZE XDMA_EXPECTED_BAR1_SIZE VIVADO_JOBS DDR_RANK_WIDTH
 # Supported CPU parameters:
 #   kmh
 #   nutshell
@@ -59,18 +32,12 @@ PRJ_NAME = fpga_$(CPU)$(if $(strip $(SUFFIX)),-$(strip $(SUFFIX)),)
 PRJ_DIR ?= $(ENV_SCRIPTS_HOME)/$(PRJ_NAME)
 PRJ ?= $(PRJ_DIR)/$(PRJ_NAME).xpr
 
-UVHS_SUBMAKE = $(MAKE) -f $(CURDIR)/uvhs/Makefile ROOT_DIR="$(CURDIR)"
-
+ROOT_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+UVHS_DIR := $(dir $(ROOT_MAKEFILE))uvhs
 UVHS_FORWARD_TARGETS := \
-	uvhs_prepare uvhs_export_vivado_ip uvhs_fetch_uvw_axi4_to_ddr4 \
-	uvhs_show_uvw_axi4_to_ddr4 uvhs_filelist uvhs_check_modules \
-	uvhs_tools_check uvhs_frontend uvhs_backend uvhs_all \
-	vivado_frontend vivado_backend vivado_all \
-	uvhs_vivado_frontend uvhs_vivado_backend uvhs_vivado_all \
-	uvhs_clean uvhs_env uvhs_preflight uvhs_hejian_pcie_x4_env \
-	uvhs_hejian_pcie_x4_preflight uvhs_hejian_pcie_x4_nutshell_all \
-	uvhs_status uvhs_check_timing_clean uvhs_export_ltx \
-	uvhs_package_bitstream
+	uvhs_preflight uvhs_prepare uvhs_filelist uvhs_check_modules \
+	uvhs_frontend uvhs_backend uvhs_all uvhs_rtdb \
+	uvhs_generate_ddr_dcp uvhs_export_vivado_ip uvhs_clean
 
 .PHONY: bitstream vivado dump_ila write_jtag_flash $(UVHS_FORWARD_TARGETS)
 
@@ -99,8 +66,38 @@ update_chi_flist:
 	find "$(CHI_DIR)" -type f \( -name "*.v" -o -name "*.sv" -o -name "*.svh" \) -printf '%p\n' | \
 	awk -f ./chi_flist.awk > ./src/tcl/chi_files.tcl;
 
-$(UVHS_FORWARD_TARGETS):
-	$(UVHS_SUBMAKE) $@
+uvhs_preflight:
+	$(MAKE) -C "$(UVHS_DIR)" preflight
+
+uvhs_prepare:
+	$(MAKE) -C "$(UVHS_DIR)" prepare
+
+uvhs_filelist:
+	$(MAKE) -C "$(UVHS_DIR)" filelist
+
+uvhs_check_modules:
+	$(MAKE) -C "$(UVHS_DIR)" check_modules
+
+uvhs_frontend:
+	$(MAKE) -C "$(UVHS_DIR)" fe
+
+uvhs_backend:
+	$(MAKE) -C "$(UVHS_DIR)" be
+
+uvhs_all:
+	$(MAKE) -C "$(UVHS_DIR)" all
+
+uvhs_rtdb:
+	$(MAKE) -C "$(UVHS_DIR)" rtdb
+
+uvhs_generate_ddr_dcp:
+	$(MAKE) -C "$(UVHS_DIR)" generate_ddr_dcp
+
+uvhs_export_vivado_ip:
+	$(MAKE) -C "$(UVHS_DIR)" export_vivado_ip
+
+uvhs_clean:
+	$(MAKE) -C "$(UVHS_DIR)" clean
 
 # Launch Vivado with FPGA project configuration
 vivado: check_vivado_version

@@ -1,0 +1,7 @@
+# Runtime files are generated in place; keep only the flow sources in Git.
+*
+!.gitignore
+!Makefile
+!README.md
+!user_script/
+!user_script/hw_run_download.tcl

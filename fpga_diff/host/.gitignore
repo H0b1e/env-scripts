@@ -1,0 +1,9 @@
+# Runtime state produced on the FPGA host; keep sources and bundled binaries.
+logs/
+ready-to-run/fpga-host-build/
+*.un~
+
+# Re-include the bundled workload payloads (repo root ignores *.txt and
+# microbench-*.bin, but these are intentional test assets).
+!ready-to-run/*.bin
+!ready-to-run/*.txt

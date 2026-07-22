@@ -53,28 +53,50 @@ FPGA_DDR_LOAD_CMD="bash -lc ' \
 ./fpga-host --diff <nemu> -i <workload>.bin
 ```
 
-HJ/UVHS FPGA Flow
-=================
+UVHS FPGA Flow
+==============
 
-The Hejian NutShell source-flow index is [uvhs/README.md](uvhs/README.md);
-the canonical build, signoff, runtime, FPGA-host, and cleanup runbook is
-[uvhs/flow.md](uvhs/flow.md).
+The self-contained UVHS profile is documented in [uvhs/README.md](uvhs/README.md).
+It uses staged scripts, RTL, DCP inputs, and a frozen NutShell source closure
+inside `uvhs/`; it does not use the standalone Vivado project flow above.
 
-A typical build starts with:
+Run the profile directly:
 
 ```shell
-make uvhs_tools_check
-make uvhs_hejian_pcie_x4_preflight CORE_DIR=/path/to/NutShell
-make uvhs_hejian_pcie_x4_nutshell_all \
-  CORE_DIR=/path/to/NutShell SUFFIX=<unique-tag>
-make uvhs_package_bitstream CPU=nutshell \
-  UVHS_WORK_DIR=/path/to/fpga_diff_uvhs_nutshell-<unique-tag>
+make -C uvhs preflight
+make -C uvhs generate_ddr_dcp
+make -C uvhs prepare
+make -C uvhs check_modules
+make -C uvhs fe
+make -C uvhs be
+make -C uvhs rtdb
 ```
 
-Copy `uvhs/setenv.local.example.sh` to the ignored `setenv.local.sh` for
-machine-specific tools and licenses. The caller supplies `CORE_DIR`, verified
-UVHS DDR/XDMA IP assets, and a unique build suffix. Program the resulting
-`hw.dat` through the vendor runtime using `user_script/hw_run_download.tcl`.
-The normal `fpga-host` path loads workloads through H2C. Use
-`uvhs_tagged_runtime.sh` so runtime sessions and cleanup remain exact-tag
-scoped; keep board-specific debug helpers local.
+The DDR DCP is not committed; `generate_ddr_dcp` rebuilds it locally with
+Vivado (and `fe` does so automatically when it is missing).
+
+Or use the root bridge aliases:
+
+```shell
+make uvhs_preflight
+make uvhs_generate_ddr_dcp
+make uvhs_prepare
+make uvhs_check_modules
+make uvhs_frontend
+make uvhs_backend
+make uvhs_rtdb
+```
+
+The UVHS flow creates `uvhs/hw.dat` and `uvhs/logs/`. `make -C uvhs rtdb`
+links `hw.dat` to `fpga_diff/hw.dat` and extracts the runtime DB to
+`runtime/rtdb_test/` for the [runtime download flow](runtime/). `hw.dat` is a
+UVHS runtime database and is not compatible with the standalone Vivado
+`.bit`/`.ltx` programming commands.
+
+End-to-end, the flow spans three machines/roles:
+
+1. **Build** (compile server): [`uvhs/`](uvhs/) — `make fe be rtdb`.
+2. **Download** (runtime host): [`runtime/`](runtime/) — `make run` programs
+   the bitstream and keeps the `uv_shell` session alive.
+3. **DiffTest** (PCIe host): [`host/`](host/) — loads `xdma-chr.ko` and runs
+   `fpga-host` to burn the workload via XDMA H2C and check against NEMU.

@@ -76,3 +76,7 @@ hw.dat/
 *.tsodone
 *.backup.jou
 *.backup.log
+
+# Locally regenerated UVHS DDR IP artifacts (uvhs/tools/ddr_ip)
+uvhs/.ddr_ip_build/
+uvhs/rtl/soc/uvw_axi4_to_ddr4_Stub.v
