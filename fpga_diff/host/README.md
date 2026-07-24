@@ -20,7 +20,8 @@ fpga_diff/host/
 ├── README.md              # this file
 ├── host_script/           # 10 host_*.sh helpers (self-contained)
 └── ready-to-run/
-    ├── microbench-nutshell.bin   # 25K, the workload burned via H2C
+    ├── microbench-riscv64-nutshell.bin  # default workload burned via H2C
+    ├── microbench-nutshell.bin          # legacy default
     ├── microbench-xs-no-uart.bin
     ├── hello-xs.bin
     ├── xdma-chr.ko               # bundled known-good kernel module

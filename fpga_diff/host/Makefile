@@ -18,7 +18,7 @@
 RUN_TAG       ?= $(shell hostname)-$(shell date +%Y%m%d-%H%M%S)
 WORKDIR       ?= $(CURDIR)
 SCRIPT_DIR    ?= $(WORKDIR)/host_script
-WORKLOAD_BIN  ?= $(WORKDIR)/ready-to-run/microbench-nutshell.bin
+WORKLOAD_BIN  ?= $(WORKDIR)/ready-to-run/microbench-riscv64-nutshell.bin
 LOG_DIR       ?= $(WORKDIR)/logs
 
 # Caller MUST provide these (no silent defaults — better to fail loud).
