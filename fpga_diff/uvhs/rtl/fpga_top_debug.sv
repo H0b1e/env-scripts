@@ -12,7 +12,7 @@ module fpga_top_debug
    input                 clk7_p, // ddr 80MHz
    input                 clk7_n,
 `endif
-   input                 clk6_p, // system 200MHz
+   input                 clk6_p, // system/CPU clock
 `ifndef UVHS_NO_XILINX_CLK_PRIMS
    input                 clk6_n,
 `endif
@@ -96,13 +96,13 @@ assign rstn_sw4_to_core = rstn_sw4_ctrl;
 // But this pin is on connector, which might not have current by default?
 assign PHY_RESET_B = cpu_rstn_to_core;
 
-wire   cqetmclk_buf;
+wire cqetmclk_buf;
 
 `ifdef UVHS_NO_XILINX_CLK_PRIMS
-assign cqetmclk_buf   = clk6_p;
+assign cqetmclk_buf = clk6_p;
 `else
-wire    cqetmclk;
-IBUFGDS ibufgds_tmclk_200MHz
+wire cqetmclk;
+IBUFGDS ibufgds_tmclk
 (
 	.I              (clk6_p),
 	.IB             (clk6_n),

@@ -4,7 +4,6 @@
 
 set cpu_clocks [concat \
     [get_clocks -quiet CPU_CLK_IN] \
-    [get_clocks -quiet soc_clk] \
     [get_clocks -quiet SOC_GATED_CLK]]
 set ddr_clocks [concat \
     [get_clocks -quiet DDR_UI_CLK] \

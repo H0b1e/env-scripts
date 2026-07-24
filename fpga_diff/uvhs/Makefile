@@ -15,6 +15,9 @@ SHELL := /bin/bash
 
 VIVADO ?= vivado
 JOBS   ?= 8
+UVHS_CPU_CLK_PERIOD_NS ?= 8
+
+export UVHS_CPU_CLK_PERIOD_NS
 
 # Known-good hash of the frozen XDMA EP checkpoint, verified by `make prepare`.
 XDMA_EP_DCP_SHA256 ?= e40002b4ccab73d4d7a1398630f59428add0a64b9f33d284d3789595bb791b32

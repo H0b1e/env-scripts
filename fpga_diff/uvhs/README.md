@@ -20,6 +20,18 @@ make rtdb
 DCP/stub automatically when they are missing. `make filelist` regenerates
 `rtl/filelist.f`; `make export_vivado_ip` is an optional, slow DCP/IP export.
 
+### CPU Clock Timing
+
+`clk6_p` is the sole source for `sys_clk_i`, `dev_clk_i`, and the CPU's gated
+clock. `UVHS_CPU_CLK_PERIOD_NS` sets its timing constraint and consequently
+the UART peripheral clock through `AXI_bridge.ACLK`; its default is 8 ns
+(125 MHz). This variable changes timing analysis only—it does not reprogram the physical
+board clock source. For example:
+
+```sh
+make fe UVHS_CPU_CLK_PERIOD_NS=8
+```
+
 The parent `fpga_diff/Makefile` provides equivalent prefixed bridge targets:
 
 ```sh
