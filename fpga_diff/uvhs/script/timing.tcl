@@ -1,4 +1,6 @@
-set cpu_clk_period_ns 8
+# Fallback only; the env-scripts uvhs Makefile (UVHS_CPU_CLK_PERIOD_NS) is the
+# authoritative source. 11.0592 MHz = 90.422 ns.
+set cpu_clk_period_ns 90.422
 if {[info exists ::env(UVHS_CPU_CLK_PERIOD_NS)] && $::env(UVHS_CPU_CLK_PERIOD_NS) ne ""} {
     set cpu_clk_period_ns $::env(UVHS_CPU_CLK_PERIOD_NS)
 }

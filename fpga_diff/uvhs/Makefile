@@ -15,7 +15,12 @@ SHELL := /bin/bash
 
 VIVADO ?= vivado
 JOBS   ?= 8
-UVHS_CPU_CLK_PERIOD_NS ?= 8
+# clk6_p target period (ns). 11.0592 MHz = 115200*16*6: exact 115200 baud at
+# 16550 divisor 6, ~23% margin under the ~14.4 MHz runtime ceiling (higher
+# targets get auto-relaxed by estimate_fmax_relax_mode and detune the UART).
+# Keep nexus-am serial-16550.c divisor (11059200/(16*115200) == 6) consistent
+# with 1e9 / this period, so clk6_p / (16 * divisor) stays at 115200.
+UVHS_CPU_CLK_PERIOD_NS ?= 90.422
 
 export UVHS_CPU_CLK_PERIOD_NS
 
