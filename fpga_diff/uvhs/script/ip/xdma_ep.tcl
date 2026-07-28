@@ -230,6 +230,22 @@ proc create_root_design { parentCell } {
   }
   puts "INFO: XDMA axisten_freq=$xdma_axisten_freq for $xdma_link_width"
 
+  # BAR layout knobs. Defaults reproduce the verified bar512c checkpoint
+  # (512KB AXI-Lite master BAR + PF0 BAR1 64KB Memory); override via env.
+  set axilite_scale [env_choice XDMA_AXILITE_MASTER_SCALE Kilobytes {Kilobytes Megabytes}]
+  set axilite_size 512
+  if {[info exists ::env(XDMA_AXILITE_MASTER_SIZE)] && [string trim $::env(XDMA_AXILITE_MASTER_SIZE)] ne ""} {
+    set axilite_size [string trim $::env(XDMA_AXILITE_MASTER_SIZE)]
+  }
+  if {![string is integer -strict $axilite_size] || $axilite_size < 1} {
+    error "XDMA_AXILITE_MASTER_SIZE must be a positive integer, got '$axilite_size'"
+  }
+  puts "INFO: XDMA_AXILITE_MASTER_SIZE=$axilite_size"
+  set bar1_enabled [expr {[env_choice XDMA_ENABLE_PF0_BAR1 1 {0 1}] eq "1" ? "true" : "false"}]
+  # AXI-Lite address segment range derived from the BAR aperture.
+  set range_mult [expr {$axilite_scale eq "Kilobytes" ? 1024 : 1048576}]
+  set axilite_range [format "0x%08X" [expr {$axilite_size * $range_mult}]]
+
   if { $parentCell eq "" } {
      set parentCell [get_bd_cells /]
   }
@@ -337,8 +353,8 @@ proc create_root_design { parentCell } {
       CONFIG.PF3_DEVICE_ID_mqdma {9348} \
       CONFIG.axi_data_width {256_bit} \
       CONFIG.axilite_master_en {true} \
-      CONFIG.axilite_master_scale {Megabytes} \
-      CONFIG.axilite_master_size {1} \
+      CONFIG.axilite_master_scale $axilite_scale \
+      CONFIG.axilite_master_size $axilite_size \
       CONFIG.axisten_freq $xdma_axisten_freq \
       CONFIG.bar0_indicator {1} \
       CONFIG.bar1_indicator {0} \
@@ -355,7 +371,12 @@ proc create_root_design { parentCell } {
       CONFIG.pf0_bar0_scale {Kilobytes} \
       CONFIG.pf0_bar0_size {128} \
       CONFIG.pf0_bar0_type_mqdma {DMA} \
-      CONFIG.pf0_bar1_enabled {false} \
+      CONFIG.pf0_bar1_enabled $bar1_enabled \
+      CONFIG.pf0_bar1_scale {Kilobytes} \
+      CONFIG.pf0_bar1_size {64} \
+      CONFIG.pf0_bar1_type {Memory} \
+      CONFIG.pf0_bar1_64bit {false} \
+      CONFIG.pf0_bar1_prefetchable {false} \
       CONFIG.pf0_base_class_menu {Memory_controller} \
       CONFIG.pf0_base_class_menu_mqdma {Memory_controller} \
       CONFIG.pf0_class_code {058000} \
@@ -381,8 +402,8 @@ proc create_root_design { parentCell } {
       CONFIG.PF3_DEVICE_ID_mqdma {9048} \
       CONFIG.axi_data_width {256_bit} \
       CONFIG.axilite_master_en {true} \
-      CONFIG.axilite_master_scale {Megabytes} \
-      CONFIG.axilite_master_size {1} \
+      CONFIG.axilite_master_scale $axilite_scale \
+      CONFIG.axilite_master_size $axilite_size \
       CONFIG.axisten_freq $xdma_axisten_freq \
       CONFIG.bar0_indicator {1} \
       CONFIG.bar1_indicator {0} \
@@ -398,7 +419,12 @@ proc create_root_design { parentCell } {
       CONFIG.pf0_bar0_scale {Kilobytes} \
       CONFIG.pf0_bar0_size {128} \
       CONFIG.pf0_bar0_type_mqdma {DMA} \
-      CONFIG.pf0_bar1_enabled {false} \
+      CONFIG.pf0_bar1_enabled $bar1_enabled \
+      CONFIG.pf0_bar1_scale {Kilobytes} \
+      CONFIG.pf0_bar1_size {64} \
+      CONFIG.pf0_bar1_type {Memory} \
+      CONFIG.pf0_bar1_64bit {false} \
+      CONFIG.pf0_bar1_prefetchable {false} \
       CONFIG.pf0_base_class_menu {Memory_controller} \
       CONFIG.pf0_base_class_menu_mqdma {Memory_controller} \
       CONFIG.pf0_class_code {058000} \
@@ -461,7 +487,7 @@ proc create_root_design { parentCell } {
   [get_bd_ports pcie_ep_lnk_up]
 
   # Create address segments
-  assign_bd_address -offset 0x00000000 -range 0x00100000 -target_address_space [get_bd_addr_spaces xdma_0/M_AXI_LITE] [get_bd_addr_segs XDMA_AXI_LITE/Reg] -force
+  assign_bd_address -offset 0x00000000 -range $axilite_range -target_address_space [get_bd_addr_spaces xdma_0/M_AXI_LITE] [get_bd_addr_segs XDMA_AXI_LITE/Reg] -force
 
 
   # Restore current instance

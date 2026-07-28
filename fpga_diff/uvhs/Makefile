@@ -24,9 +24,6 @@ UVHS_CPU_CLK_PERIOD_NS ?= 90.422
 
 export UVHS_CPU_CLK_PERIOD_NS
 
-# Known-good hash of the frozen XDMA EP checkpoint, verified by `make prepare`.
-XDMA_EP_DCP_SHA256 ?= e40002b4ccab73d4d7a1398630f59428add0a64b9f33d284d3789595bb791b32
-
 # Local DDR DCP regeneration (frozen-compatible: 256b AXI / 34b addr / 14b ID / ECC off).
 DDR_IP_DIR   := tools/ddr_ip
 DDR_IP_JSON  := $(DDR_IP_DIR)/UV_FMCH_PDDR4DME/uvw_axi4_to_ddr4.json
@@ -37,12 +34,16 @@ DDR_STUB     := rtl/soc/uvw_axi4_to_ddr4_Stub.v
 # Modules that must be reachable from the RTL filelist before synthesis.
 REQUIRED_MODULES ?= fpga_top_debug SimTop
 
-# IP export selection. xdma_ep stays skipped by default: the staged checkpoint
-# is the verified Hejian X4 EP DCP (sha256 above), not a locally rebuilt one.
+# IP export selection. Default: regenerate every IP under script/ip/
+# (AXI_bridge, blk_mem_gen_0, data_bridge, xdma_ep). The xdma_ep defaults in
+# script/ip/xdma_ep.tcl reproduce the verified bar512c BAR layout (see the
+# XDMA_AXILITE_MASTER_*/XDMA_ENABLE_PF0_BAR1 knobs there).
+#   EXPORT_IP_ONLY=xdma_ep   regenerate just one IP
+#   EXPORT_IP_SKIP=xdma_ep   regenerate all but the listed IPs
 # jtag_ddr_subsys has no export entry: the trim flow never binds its DCP (the
 # wrapper is synthesized as RTL with an implicit blackbox inner module).
 EXPORT_IP_ONLY ?=
-EXPORT_IP_SKIP ?= xdma_ep
+EXPORT_IP_SKIP ?=
 
 .PHONY: all fe be rtdb clean preflight prepare filelist check_modules export_vivado_ip \
 	generate_ddr_dcp ddr_ip
@@ -79,8 +80,6 @@ prepare:
 	         rtl/device/pcie/xdma_ep.dcp; do \
 		test -s "$$f" || { echo "ERROR: missing staged input $$f (run make generate_ddr_dcp for DDR)" >&2; exit 1; }; \
 	done
-	@# Guard the frozen XDMA checkpoint against accidental replacement.
-	test "$$(sha256sum rtl/device/pcie/xdma_ep.dcp | awk '{print $$1}')" = "$(XDMA_EP_DCP_SHA256)"
 	mkdir -p logs
 
 filelist:
@@ -109,8 +108,7 @@ export_vivado_ip:
 	set -o pipefail; $(VIVADO) -mode batch -source ./script/export_vivado_ip.tcl \
 		-tclargs --origin_dir . --out_dir . --cpu nutshell --core_dir vendor/cpu \
 			--jobs $(JOBS) \
-			$(if $(strip $(EXPORT_IP_ONLY)),--only "$(EXPORT_IP_ONLY)",) \
-			$(foreach ip,$(EXPORT_IP_SKIP),--skip "$(ip)") \
+			$(if $(strip $(EXPORT_IP_ONLY)),--only "$(EXPORT_IP_ONLY)",$(foreach ip,$(EXPORT_IP_SKIP),--skip "$(ip)")) \
 			--force |& tee logs/export_vivado_ip.log
 
 clean:
