@@ -140,39 +140,53 @@ if [ "$(id -u)" != 0 ]; then
   exit 7
 fi
 
+already_bound=0
 if [ -e "$DEV/driver" ]; then
-  echo "ERROR: device is already bound; this script will not unbind it" >&2
-  exit 8
+  bound_driver="$(basename "$(readlink "$DEV/driver")")"
+  case "$bound_driver" in
+    xdma-chr|xdma_chr)
+      # Idempotent re-run: a previous successful load already bound the
+      # device to our driver; skip restore/load/bind and just verify.
+      already_bound=1
+      echo "device already bound to $bound_driver; skipping restore/load/bind"
+      ;;
+    *)
+      echo "ERROR: device is already bound to '$bound_driver'; this script will not unbind it" >&2
+      exit 8
+      ;;
+  esac
 fi
 
-if [ "$RESTORE_BARS" = 1 ]; then
-  XDMA_BDF="$BDF" XDMA_RESTORE_APPLY=1 "$SCRIPT_DIR/host_restore_xdma_bars.sh"
-fi
-
-override="$(cat "$DEV/driver_override" 2>/dev/null || true)"
-case "$override" in
-  ""|"(null)") override="" ;;
-esac
-if [ -n "$override" ]; then
-  if [ "$CLEAR_OVERRIDE" = 1 ]; then
-    printf '\n' > "$DEV/driver_override"
-    echo "cleared driver_override"
-  else
-    echo "ERROR: driver_override is set to '$override'; set XDMA_CLEAR_DRIVER_OVERRIDE=1 to clear it" >&2
-    exit 9
+if [ "$already_bound" = 0 ]; then
+  if [ "$RESTORE_BARS" = 1 ]; then
+    XDMA_BDF="$BDF" XDMA_RESTORE_APPLY=1 "$SCRIPT_DIR/host_restore_xdma_bars.sh"
   fi
-fi
 
-if ! module_loaded; then
-  insmod "$KO"
-  echo "insmod_rc=$?"
-else
-  echo "xdma_chr module already loaded"
-fi
+  override="$(cat "$DEV/driver_override" 2>/dev/null || true)"
+  case "$override" in
+    ""|"(null)") override="" ;;
+  esac
+  if [ -n "$override" ]; then
+    if [ "$CLEAR_OVERRIDE" = 1 ]; then
+      printf '\n' > "$DEV/driver_override"
+      echo "cleared driver_override"
+    else
+      echo "ERROR: driver_override is set to '$override'; set XDMA_CLEAR_DRIVER_OVERRIDE=1 to clear it" >&2
+      exit 9
+    fi
+  fi
 
-if [ ! -e "$DEV/driver" ] && [ "$BIND" = 1 ] && [ -e /sys/bus/pci/drivers/xdma-chr/bind ]; then
-  echo "$BDF" > /sys/bus/pci/drivers/xdma-chr/bind
-  echo "manual_bind_rc=$?"
+  if ! module_loaded; then
+    insmod "$KO"
+    echo "insmod_rc=$?"
+  else
+    echo "xdma_chr module already loaded"
+  fi
+
+  if [ ! -e "$DEV/driver" ] && [ "$BIND" = 1 ] && [ -e /sys/bus/pci/drivers/xdma-chr/bind ]; then
+    echo "$BDF" > /sys/bus/pci/drivers/xdma-chr/bind
+    echo "manual_bind_rc=$?"
+  fi
 fi
 
 sleep 1
