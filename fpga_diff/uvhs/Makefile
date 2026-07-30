@@ -22,7 +22,15 @@ JOBS   ?= 8
 # with 1e9 / this period, so clk6_p / (16 * divisor) stays at 115200.
 UVHS_CPU_CLK_PERIOD_NS ?= 90.422
 
+# UHD waveform probe. Default on: script/probe.tcl registers probe_net/
+# trigger_net in fe and script/partition.tcl moves the SoC DDR controller to
+# b0.f0 (bind_system attaches it to the F0_FMC3 PDDR4DME card) so UHD can
+# claim F2_FMC3 for its capture DDR. Set to 0 for the non-UHD build with the
+# SoC DDR back on F2_FMC3.
+UVHS_ENABLE_PROBE_NET ?= 1
+
 export UVHS_CPU_CLK_PERIOD_NS
+export UVHS_ENABLE_PROBE_NET
 
 # Local DDR DCP regeneration (frozen-compatible: 256b AXI / 34b addr / 14b ID / ECC off).
 DDR_IP_DIR   := tools/ddr_ip

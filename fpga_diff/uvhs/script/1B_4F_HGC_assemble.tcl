@@ -35,7 +35,7 @@ config_hw -create_board_instance 1
 
 #config_hw -allocate_board {b0}
 
-config_hw -unplug_fpga b0.f0
+#config_hw -unplug_fpga b0.f0
 #config_hw -unplug_fpga b0.f1
 #config_hw -unplug_fpga b0.f2
 config_hw -unplug_fpga b0.f3
