@@ -31,6 +31,7 @@ set fw_last_addr [expr {$fw_size / $FW_ALIGN - 1}]
 writemem -rtl fpga_top_debug.core_def.U_UVHS_UVW_AXI4_TO_DDR4\[$fw_last_addr:0\] -file_type bin -file $FW_BIN
 after 1000
 
-# Optional readback verification (uncomment, then diff against the source):
-#readmem -rtl fpga_top_debug.core_def.U_UVHS_UVW_AXI4_TO_DDR4\[$fw_last_addr:0\] -file_type bin -file $FW_BIN.readback
-#after 1000
+# To verify the write landed, read the range back in the SAME session (a
+# fresh uv_shell session finds the FPGA image already torn down) — e.g.
+# source ./user_script/ddr_read.tcl with UVHS_RD_* set, or type the one-line
+# readmem at the hspRun> prompt. See ddr_read.tcl.
