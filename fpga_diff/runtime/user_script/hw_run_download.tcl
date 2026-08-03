@@ -42,6 +42,12 @@ reset -name rstn_sw6 -value 1
 reset -name rstn_sw4 -value 1
 after 1000
 
+# Optional DDR backdoor load (UVHS_FW_BIN set): stage the boot image into DDR
+# while the CPU reset is held, so the CPU boots from it below.
+if {[info exists ::env(UVHS_FW_BIN)] && $::env(UVHS_FW_BIN) ne ""} {
+    source ./user_script/ddr_backdoor.tcl
+}
+
 reset -name rstn_sw5 -value 1
 after 1000
 

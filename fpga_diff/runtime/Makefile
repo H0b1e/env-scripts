@@ -1,4 +1,10 @@
-.PHONY: run uhd query-cards wave clean-logs
+.PHONY: run uhd query-cards wave backdoor clean-logs
+
+# Optional DDR backdoor load during "run"/"uhd": when set, the named image
+# is written into the SoC DDR via the UVHS memory backdoor while the CPU
+# reset is held (see user_script/ddr_backdoor.tcl). Empty = disabled.
+UVHS_FW_BIN ?=
+export UVHS_FW_BIN
 
 
 run:
@@ -19,6 +25,11 @@ query-cards:
 # Needs X11.
 wave:
 	uvd -d ./rtdb_test/Uvd/uvsim.db -usdb ./u2_work_dir/UHD/uvhs_uhd/UvData.usdb --wses ./u2_work_dir/test.sg
+
+# Shorthand for "make run" with the DDR backdoor load enabled.
+backdoor:
+	@test -n "$(UVHS_FW_BIN)" || { echo "usage: make backdoor UVHS_FW_BIN=<image.bin>"; exit 1; }
+	uv_shell -t runtime -d U2 -workdir ./u2_work_dir -script user_script/hw_run_download.tcl 2>&1 | tee backdoor.log
 
 clean-logs:
 	rm -rf *.log

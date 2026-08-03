@@ -6,5 +6,6 @@
 !user_script/
 !user_script/hw_run_download.tcl
 !user_script/hw_run_uhd.tcl
+!user_script/ddr_backdoor.tcl
 !user_script/uhd_setting.ini
 !user_script/query_cards.tcl
