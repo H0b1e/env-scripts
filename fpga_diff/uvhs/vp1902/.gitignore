@@ -1,0 +1,3 @@
+# PCIe EP build scratch (Vivado project + synth runs); artifacts land one
+# level up in pcie/ (dcp gitignored globally, stub/tcl committed).
+pcie/build_prj/
