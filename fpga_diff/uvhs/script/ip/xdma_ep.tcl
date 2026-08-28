@@ -334,9 +334,20 @@ proc create_root_design { parentCell } {
    CONFIG.ASSOCIATED_RESET {cpu_rstn} \
  ] $cpu_clk
 
-  # Create instance: axi_interconnect_0, and set properties
-  set axi_interconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0 ]
-  set_property CONFIG.NUM_MI {1} $axi_interconnect_0
+  # Create instance: axi_interconnect_0, and set properties.
+  # axi_interconnect is not supported on Versal (BD 5-683): use smartconnect
+  # for the same 1-slave/1-master AXI-Lite path with async clock conversion
+  # (xdma axi_aclk <-> cpu_clk). Pin roles differ: aclk/aclk1/aresetn instead
+  # of ACLK/S00_ACLK/M00_ACLK + per-side resets.
+  if {[string match "xcvp*" [get_property PART [current_project]]]} {
+    set axi_interconnect_0 [ create_bd_cell -type ip -vlnv [pick_ip_vlnv smartconnect] axi_interconnect_0 ]
+    set_property -dict [list CONFIG.NUM_SI {1} CONFIG.NUM_MI {1} CONFIG.NUM_CLKS {2}] $axi_interconnect_0
+    set use_smartconnect 1
+  } else {
+    set axi_interconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0 ]
+    set_property CONFIG.NUM_MI {1} $axi_interconnect_0
+    set use_smartconnect 0
+  }
 
   # Create instance: util_ds_buf_0, and set properties
   set util_ds_buf_0 [ create_bd_cell -type ip -vlnv $util_vlnv util_ds_buf_0 ]
@@ -344,6 +355,18 @@ proc create_root_design { parentCell } {
 
   # Create instance: xdma_0, and set properties
   set xdma_0 [ create_bd_cell -type ip -vlnv $xdma_vlnv xdma_0 ]
+  # GT quad / PCIe hard-block site enums are part-specific (IP_Flow 19-3461):
+  # VU19P = GTY quad + PCIE4C site; Versal = GTH quad + S-series site
+  # (GTH_Quad_128 is the only legal quad on xcvp1902 for this speed; the
+  # S-site placeholder must be reconciled with the board GT wiring at the
+  # assign_pin/board-file stage).
+  if {[string match "xcvp*" [get_property PART [current_project]]]} {
+    set xdma_gt_quad GTH_Quad_128
+    set xdma_pcie_blk_locn S0X0Y0
+  } else {
+    set xdma_gt_quad GTY_Quad_236
+    set xdma_pcie_blk_locn PCIE4C_X0Y6
+  }
   # Configure based on XDMA IP version
   if { [string match "*4.2" $xdma_vlnv] } {
     set_property -dict [list \
@@ -365,7 +388,7 @@ proc create_root_design { parentCell } {
       CONFIG.en_gt_selection {true} \
       CONFIG.enable_gtwizard {false} \
       CONFIG.mode_selection {Advanced} \
-      CONFIG.pcie_blk_locn {PCIE4C_X0Y6} \
+      CONFIG.pcie_blk_locn $xdma_pcie_blk_locn \
       CONFIG.pf0_bar0_64bit {false} \
       CONFIG.pf0_bar0_enabled {true} \
       CONFIG.pf0_bar0_scale {Kilobytes} \
@@ -392,7 +415,7 @@ proc create_root_design { parentCell } {
       CONFIG.pl_link_cap_max_link_width $xdma_link_width \
       CONFIG.plltype {QPLL1} \
       CONFIG.runbit_fix {false} \
-      CONFIG.select_quad {GTY_Quad_236} \
+      CONFIG.select_quad $xdma_gt_quad \
       CONFIG.xdma_axi_intf_mm {AXI_Stream} \
     ] $xdma_0
   } elseif { [string match "*4.1" $xdma_vlnv] } {
@@ -413,7 +436,7 @@ proc create_root_design { parentCell } {
       CONFIG.dma_reset_source_sel {Phy_Ready} \
       CONFIG.en_gt_selection {true} \
       CONFIG.mode_selection {Advanced} \
-      CONFIG.pcie_blk_locn {PCIE4C_X0Y6} \
+      CONFIG.pcie_blk_locn $xdma_pcie_blk_locn \
       CONFIG.pf0_bar0_64bit {false} \
       CONFIG.pf0_bar0_enabled {true} \
       CONFIG.pf0_bar0_scale {Kilobytes} \
@@ -441,7 +464,7 @@ proc create_root_design { parentCell } {
       CONFIG.pl_link_cap_max_link_speed {8.0_GT/s} \
       CONFIG.pl_link_cap_max_link_width $xdma_link_width \
       CONFIG.plltype {QPLL1} \
-      CONFIG.select_quad {GTY_Quad_236} \
+      CONFIG.select_quad $xdma_gt_quad \
       CONFIG.xdma_axi_intf_mm {AXI_Stream} \
     ] $xdma_0
   } else {
@@ -458,6 +481,18 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net xdma_0_M_AXI_LITE [get_bd_intf_pins axi_interconnect_0/S00_AXI] [get_bd_intf_pins xdma_0/M_AXI_LITE]
 
   # Create port connections
+  if {$use_smartconnect} {
+    # smartconnect async CDC: aclk = PCIe-side (SI), aclk1 = cpu_clk (MI),
+    # single aresetn on the PCIe-side reset; cpu_rstn stays an (unconnected)
+    # external port for wrapper compatibility.
+    connect_bd_net -net ARESETN_1  [get_bd_pins xdma_0/axi_aresetn] \
+    [get_bd_pins axi_interconnect_0/aresetn]
+    connect_bd_net -net M00_AXIS_ACLK_1  [get_bd_pins xdma_0/axi_aclk] \
+    [get_bd_pins axi_interconnect_0/aclk] \
+    [get_bd_ports TO_DIFFTEST_PCIE_CLK]
+    connect_bd_net -net cpu_clk_1  [get_bd_ports cpu_clk] \
+    [get_bd_pins axi_interconnect_0/aclk1]
+  } else {
   connect_bd_net -net ARESETN_1  [get_bd_pins xdma_0/axi_aresetn] \
   [get_bd_pins axi_interconnect_0/ARESETN] \
   [get_bd_pins axi_interconnect_0/S00_ARESETN]
@@ -469,6 +504,13 @@ proc create_root_design { parentCell } {
   [get_bd_pins axi_interconnect_0/M00_ACLK]
   connect_bd_net -net m_axis_c2h_aresetn_0_1  [get_bd_ports cpu_rstn] \
   [get_bd_pins axi_interconnect_0/M00_ARESETN]
+  }
+  # Versal xdma exposes the split-DMA secondary user clock (user_clk_sd);
+  # tie it to the primary user clock (single-clock user domain). Absent on
+  # UltraScale+, hence the -quiet guard.
+  if {[llength [get_bd_pins -quiet xdma_0/user_clk_sd]]} {
+    connect_bd_net [get_bd_pins xdma_0/axi_aclk] [get_bd_pins xdma_0/user_clk_sd]
+  }
   connect_bd_net -net pci_exp_rxn_0_1  [get_bd_ports pci_exp_rxn] \
   [get_bd_pins xdma_0/pci_exp_rxn]
   connect_bd_net -net pci_exp_rxp_0_1  [get_bd_ports pci_exp_rxp] \
